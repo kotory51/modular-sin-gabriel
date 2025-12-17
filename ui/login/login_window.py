@@ -1,18 +1,23 @@
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QFormLayout, QLineEdit, QComboBox, QPushButton,
-                             QMessageBox, QLabel, QFrame, QHBoxLayout, QSizePolicy)
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QFormLayout, QLineEdit, QComboBox, QPushButton,
+    QMessageBox, QLabel, QFrame, QHBoxLayout, QSizePolicy
+)
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt
 from core.api_simulada import validate_user
 import os
+
 
 class LoginWindow(QWidget):
     def __init__(self, on_login_success):
         super().__init__()
         self.setWindowTitle("Inicio de Sesión")
         self.on_login_success = on_login_success
+
         self.setStyleSheet("""
             QWidget {
-                background: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1, stop:0 #1e3c72, stop:1 #2a5298);
+                background: qlineargradient(spread:pad, x1:0, y1:0, x2:1, y2:1,
+                stop:0 #1e3c72, stop:1 #2a5298);
                 color: #fff;
                 font-family: Segoe UI, sans-serif;
             }
@@ -48,8 +53,7 @@ class LoginWindow(QWidget):
             }
         """)
 
-        self.layout = QHBoxLayout()
-        self.setLayout(self.layout)
+        self.layout = QHBoxLayout(self)
 
         self.left_container = QWidget()
         self.right_container = QWidget()
@@ -61,6 +65,7 @@ class LoginWindow(QWidget):
 
         self.build_left()
         self.build_right()
+
         self.showFullScreen()
 
     def build_left(self):
@@ -68,9 +73,15 @@ class LoginWindow(QWidget):
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         logo = QLabel()
-        logo_path = os.path.join(os.path.dirname(__file__), r'C:\Users\kurof\OneDrive\Desktop\prueba\ui\widgets\img/logo.png')
+        logo_path = os.path.join(
+            os.path.dirname(__file__),
+            r"C:\Users\kurof\OneDrive\Desktop\prueba\ui\widgets\img\logo.png"
+        )
+
         if os.path.exists(logo_path):
-            logo.setPixmap(QPixmap(logo_path).scaled(200, 200, Qt.AspectRatioMode.KeepAspectRatio))
+            logo.setPixmap(
+                QPixmap(logo_path).scaled(200, 200, Qt.AspectRatioMode.KeepAspectRatio)
+            )
             logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
             layout.addWidget(logo)
 
@@ -92,8 +103,14 @@ class LoginWindow(QWidget):
         self.username = QLineEdit()
         self.password = QLineEdit()
         self.password.setEchoMode(QLineEdit.EchoMode.Password)
+
         self.role = QComboBox()
         self.role.addItems(["Administrador", "Chofer", "Supervisor"])
+
+        # eventos entrar
+        self.username.returnPressed.connect(self.attempt_login)
+        self.password.returnPressed.connect(self.attempt_login)
+        self.role.activated.connect(self.attempt_login)
 
         form_layout.addRow("Usuario:", self.username)
         form_layout.addRow("Contraseña:", self.password)
@@ -115,20 +132,29 @@ class LoginWindow(QWidget):
         buttons_layout.addWidget(self.exit_btn)
 
         layout.addLayout(buttons_layout)
-
         self.right_container.setLayout(layout)
 
     def attempt_login(self):
-        user = self.username.text()
-        pwd = self.password.text()
+        user = self.username.text().strip()
+        pwd = self.password.text().strip()
         role = self.role.currentText()
 
+        if not user or not pwd:
+            QMessageBox.warning(self, "Campos vacíos", "Ingresa usuario y contraseña")
+            return
+
         if validate_user(user, pwd, role):
-            # LLAMAMOS AL ROUTER
             self.on_login_success(role)
             self.close()
         else:
             QMessageBox.warning(self, "Error", "Credenciales incorrectas")
+
+    # evento salir
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Escape:
+            self.confirm_exit()
+        else:
+            super().keyPressEvent(event)
 
     def confirm_exit(self):
         msg = QMessageBox(self)
@@ -143,8 +169,7 @@ class LoginWindow(QWidget):
         msg.addButton(no_btn, QMessageBox.ButtonRole.RejectRole)
 
         msg.setDefaultButton(no_btn)
-
-        ret = msg.exec()
+        msg.exec()
 
         if msg.clickedButton() == yes_btn:
             self.close()

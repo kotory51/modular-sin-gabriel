@@ -11,7 +11,7 @@ class SensorCard(QWidget):
         self.setMinimumHeight(140)
         self.setMaximumHeight(160)
 
-        # --- Estilo para modo CLARO ---
+        # modo claro
         self.setStyleSheet("""
             QWidget {
                 background: #ffffff;
@@ -34,7 +34,7 @@ class SensorCard(QWidget):
             }
         """)
 
-        # Layout principal
+        # principal
         main = QVBoxLayout()
         main.setContentsMargins(16, 12, 16, 12)
         main.setSpacing(6)
@@ -45,7 +45,7 @@ class SensorCard(QWidget):
         self.lbl_titulo.setProperty("class", "titulo")
         self.lbl_titulo.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
-        # Valor + unidad
+        # Valor y unidad
         val_layout = QHBoxLayout()
         self.lbl_valor = QLabel("--")
         self.lbl_valor.setObjectName("valor")
