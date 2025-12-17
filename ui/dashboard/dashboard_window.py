@@ -1,4 +1,3 @@
-# ui/dashboard/dashboard_window.py
 from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QFrame, QPushButton,
     QStackedWidget, QSizePolicy, QGridLayout, QLabel
@@ -37,15 +36,13 @@ class Dashboard(QWidget):
 
         self.setObjectName("root")
 
-        # ------------------------------
         #  PRIMERO INICIAMOS EL WORKER
-        # ------------------------------
         self.worker = ESP32Worker(puerto="COM7", baudios=115200)
         self.worker.data_received.connect(self.on_sensor_data)
         self.worker.error.connect(self.on_worker_error)
         self.worker.start()
 
-        # ---------------- Layout principal ----------------
+        # principal
         main_layout = QHBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
@@ -59,12 +56,12 @@ class Dashboard(QWidget):
         menu_container_layout.setContentsMargins(0, 0, 0, 0)
         menu_container_layout.setSpacing(0)
 
-        # Sidebar
+        # carta del lado
         self.sidebar = self._build_sidebar()
         self.sidebar.setMinimumWidth(self.menu_expanded_width)
         menu_container_layout.addWidget(self.sidebar)
 
-        # Botón toggle
+        # Botón
         self.toggle_button = QPushButton("☰")
         self.toggle_button.setFixedSize(30, 30)
         self.toggle_button.setStyleSheet("""
@@ -86,13 +83,11 @@ class Dashboard(QWidget):
         menu_container_layout.addWidget(self.toggle_button)
         menu_container_layout.addStretch()
 
-        # STACK DE PÁGINAS
+        # pila carta
         self.stack = QStackedWidget()
         self.stack.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
-        # ----------------------------
-        #  PÁGINAS (worker YA EXISTE)
-        # ----------------------------
+        # pagina worker
         self.page_dashboard = self._build_dashboard_page()
 
         #  Módulo Dispositivos REAL
@@ -115,7 +110,7 @@ class Dashboard(QWidget):
         self.menu_animation.setDuration(300)
         self.menu_animation.setEasingCurve(QEasingCurve.Type.InOutCubic)
 
-        # Timer auto ocultar
+        # auto ocultar
         self.hide_menu_timer = QTimer()
         self.hide_menu_timer.setSingleShot(True)
         self.hide_menu_timer.setInterval(500)
@@ -125,9 +120,7 @@ class Dashboard(QWidget):
         self.setMouseTracking(True)
         self.stack.setMouseTracking(True)
 
-    # ----------------------------------------------------------------------
-    # -------------------------- DISEÑO SIN MODO OSCURO ---------------------
-    # ----------------------------------------------------------------------
+    # diseño sin modo oscuro
     def apply_theme(self):
         """Modo claro fijo"""
         self.setStyleSheet("""
@@ -159,9 +152,7 @@ class Dashboard(QWidget):
             }
         """)
 
-    # ----------------------------------------------------------------------
-    # ---------------------------- SIDEBAR ---------------------------------
-    # ----------------------------------------------------------------------
+    # barra
     def _build_sidebar(self):
         menu = QFrame()
         menu.setObjectName("sidebar")
@@ -201,9 +192,7 @@ class Dashboard(QWidget):
 
         return menu
 
-    # ----------------------------------------------------------------------
-    # --------------------------- PÁGINAS ----------------------------------
-    # ----------------------------------------------------------------------
+    # cartas
     def _build_dashboard_page(self):
         page = QFrame()
         page.setObjectName("page")
@@ -246,9 +235,7 @@ class Dashboard(QWidget):
         layout.addStretch()
         return w
 
-    # ----------------------------------------------------------------------
-    # ------------------ MANEJO DEL MENÚ LATERAL ---------------------------
-    # ----------------------------------------------------------------------
+    # manejo del menu
     def eventFilter(self, obj, event):
         if obj == self.stack and event.type() == QEvent.Type.MouseMove:
             if not self.menu_pinned:
@@ -298,9 +285,8 @@ class Dashboard(QWidget):
         if not self.menu_pinned:
             self.hide_menu_timer.start()
 
-    # ----------------------------------------------------------------------
-    # --------------------------- SENSORES ---------------------------------
-    # ----------------------------------------------------------------------
+    # sensores
+
     def on_sensor_data(self, datos: dict):
         mapping = {
             "T_Amb": "T_Amb",
