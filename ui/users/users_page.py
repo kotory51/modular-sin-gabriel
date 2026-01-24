@@ -17,7 +17,7 @@ from database.users_db import (
     get_next_user_id
 )
 
-API_URL = "http://10.237.79.109:8000"
+API_URL = "http://192.168.1.68:8000"
 
 
 class UsersPage(QWidget):
