@@ -29,7 +29,7 @@ class Dashboard(QWidget):
         self.apply_theme()
 
         # ESP32
-        self.worker = ESP32Worker(puerto="COM8", baudios=115200)
+        self.worker = ESP32Worker(puerto="COM7", baudios=115200)
         self.worker.data_received.connect(self.on_sensor_data)
         self.worker.start()
 
@@ -38,7 +38,7 @@ class Dashboard(QWidget):
 
         # boton menu
         btn_container = QFrame()
-        btn_container.setFixedWidth(40)
+        btn_container.setFixedWidth(30)
         btn_layout = QVBoxLayout(btn_container)
         btn_layout.setContentsMargins(5, 5, 5, 5)
 
@@ -134,21 +134,21 @@ class Dashboard(QWidget):
                 ("Insumos Médicos", 2),
                 ("Dispositivos", 3),
                 ("Usuarios", 4),
-                ("Historial & Reportes", 5),
-                ("Alertas & Notificaciones", 6),
+                ("Historial y Reportes", 5),
+                ("Alertas y Notificaciones", 6),
             ],
             "supervisor": [
                 ("Dashboard", 0),
                 ("Rutas y Transporte", 1),
                 ("Insumos Médicos", 2),
                 ("Dispositivos", 3),
-                ("Historial & Reportes", 5),
-                ("Alertas & Notificaciones", 6),
+                ("Historial y Reportes", 5),
+                ("Alertas y Notificaciones", 6),
             ],
             "chofer": [
                 ("Dashboard", 0),
                 ("Rutas y Transporte", 1),
-                ("Alertas & Notificaciones", 6),
+                ("Alertas y Notificaciones", 6),
             ],
         }
 
@@ -167,7 +167,7 @@ class Dashboard(QWidget):
 
         return menu
 
-    # dashboard
+    # Panel Principal
     def _build_dashboard_page(self):
         page = QFrame()
         g = QGridLayout(page)
@@ -180,7 +180,7 @@ class Dashboard(QWidget):
             "Hum": SensorCard("Humedad", "%"),
             "Luz": SensorCard("Luz", "lx"),
             "Rocío": SensorCard("Punto de Condensación", "°C"),
-            "Bat": SensorCard("Batería", "%"),
+            "Bat": SensorCard("Batería", "V"),
             "Acc": SensorCard("Aceleración", "g"),
         }
 

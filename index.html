@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Logs de Conexión a Base de Datos</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="header">
+<h1>Monitor de Base de Datos</h1>
+<p>Conexiones y desconexiones registradas</p>
+</header>
+
+
+<main class="container">
+<section class="status">
+<span class="indicator online"></span>
+<span class="status-text">Base de datos conectada</span>
+</section>
+
+
+<section class="logs">
+<h2>Registros (Logs)</h2>
+<table>
+<thead>
+<tr>
+<th>Acción</th>
+<th>Usuario</th>
+<th>Fecha y hora</th>
+</tr>
+</thead>
+<tbody>
+<tr class="log connect">
+<td>Conexión</td>
+<td>admin</td>
+<td>2025-12-18 21:45:12</td>
+</tr>
+<tr class="log disconnect">
+<td>Desconexión</td>
+<td>admin</td>
+<td>2025-12-18 22:10:03</td>
+</tr>
+<tr class="log connect">
+<td>Conexión</td>
+<td>soporte</td>
+<td>2025-12-18 22:30:41</td>
+</tr>
+</tbody>
+</table>
+</section>
+</main>
+
+
+<footer class="footer">
+<p>Sistema de monitoreo · Logs de auditoría</p>
+</footer>
+<script src="app.js"></script>
+</body>
+</html>

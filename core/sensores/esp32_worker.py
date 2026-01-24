@@ -6,7 +6,7 @@ class ESP32Worker(QThread):
     data_received = pyqtSignal(dict)
     error = pyqtSignal(str)
 
-    def __init__(self, puerto="COM8", baudios=115200, parent=None):
+    def __init__(self, puerto="COM7", baudios=115200, parent=None):
         super().__init__(parent)
         self.puerto = puerto
         self.baudios = baudios
