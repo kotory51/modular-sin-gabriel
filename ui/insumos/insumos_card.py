@@ -1,4 +1,7 @@
-from PyQt6.QtWidgets import QFrame, QLabel, QVBoxLayout, QHBoxLayout, QPushButton, QSizePolicy
+from PyQt6.QtWidgets import (
+    QFrame, QLabel, QVBoxLayout, QHBoxLayout,
+    QPushButton, QSizePolicy
+)
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
 from typing import Optional
@@ -16,7 +19,7 @@ class InsumoCard(QFrame):
             QLabel { color: #222; }
             QPushButton { padding: 4px 8px; border-radius: 6px; }
         """)
-        self.setFixedSize(220, 240)
+        self.setFixedSize(280, 280)
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
         layout = QVBoxLayout(self)
@@ -28,39 +31,44 @@ class InsumoCard(QFrame):
         self.lbl_title.setStyleSheet("font-weight: bold;")
         layout.addWidget(self.lbl_title)
 
-        # Foto / placeholder
+        # Foto
         self.lbl_img = QLabel()
-        self.lbl_img.setFixedSize(160, 100)
+        self.lbl_img.setFixedSize(100, 100)
         self.lbl_img.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._update_image(self._data.get("foto"))
         layout.addWidget(self.lbl_img, 0, Qt.AlignmentFlag.AlignHCenter)
 
-        # Resumen 
+        # Subtítulo
         self.lbl_sub = QLabel(self._subtitle())
         layout.addWidget(self.lbl_sub)
 
-        # detalles cortos
+        # Detalles cortos
         self.lbl_row1 = QLabel(self._short_row1())
         self.lbl_row2 = QLabel(self._short_row2())
         layout.addWidget(self.lbl_row1)
         layout.addWidget(self.lbl_row2)
 
+        # STOCK 
+        self.lbl_stock = QLabel(f"Stock: {data.get('stock_actual', 0)}")
+        self.lbl_stock.setStyleSheet("font-size:11px;color:#555;")
+        layout.addWidget(self.lbl_stock)
+
         layout.addStretch()
 
-        # botones
+        # Botones
         btns = QHBoxLayout()
         self.btn_edit = QPushButton("Editar")
         self.btn_del = QPushButton("Eliminar")
+        self.btn_stock = QPushButton("Stock") 
         btns.addWidget(self.btn_edit)
         btns.addWidget(self.btn_del)
+        btns.addWidget(self.btn_stock)
         layout.addLayout(btns)
 
     def _subtitle(self) -> str:
-        t = self._data.get("tipo", "")
-        return t
+        return self._data.get("tipo", "")
 
     def _short_row1(self) -> str:
-        # mostrar lote / modelo / fabricante según tipo
         t = self._data.get("tipo", "")
         if t == "Medicamento":
             return f"Lote: {self._data.get('lote','')}"
@@ -79,7 +87,11 @@ class InsumoCard(QFrame):
     def _update_image(self, path: Optional[str]):
         if path:
             try:
-                pm = QPixmap(path).scaled(160, 100, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+                pm = QPixmap(path).scaled(
+                    160, 100,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation
+                )
                 self.lbl_img.setPixmap(pm)
             except Exception:
                 self.lbl_img.setText("Sin imagen")
@@ -94,4 +106,5 @@ class InsumoCard(QFrame):
         self.lbl_sub.setText(self._subtitle())
         self.lbl_row1.setText(self._short_row1())
         self.lbl_row2.setText(self._short_row2())
+        self.lbl_stock.setText(f"Stock: {data.get('stock_actual', 0)}")
         self._update_image(data.get("foto"))

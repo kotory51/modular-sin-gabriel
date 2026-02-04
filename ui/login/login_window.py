@@ -4,15 +4,20 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt
-from core.api_simulada import validate_user
 import os
+
+from database.users_db import init_db, validate_login
 
 
 class LoginWindow(QWidget):
+
     def __init__(self, on_login_success):
         super().__init__()
         self.setWindowTitle("Inicio de Sesión")
         self.on_login_success = on_login_success
+
+        
+        init_db()
 
         self.setStyleSheet("""
             QWidget {
@@ -68,6 +73,7 @@ class LoginWindow(QWidget):
 
         self.showFullScreen()
 
+
     def build_left(self):
         layout = QVBoxLayout()
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -85,12 +91,14 @@ class LoginWindow(QWidget):
             logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
             layout.addWidget(logo)
 
+
         title = QLabel("Sistema de Monitoreo Médico")
         title.setObjectName("title")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
 
         self.left_container.setLayout(layout)
+
 
     def build_right(self):
         layout = QVBoxLayout()
@@ -100,56 +108,66 @@ class LoginWindow(QWidget):
         form_layout = QFormLayout()
         form_layout.setSpacing(20)
 
-        self.username = QLineEdit()
-        self.password = QLineEdit()
-        self.password.setEchoMode(QLineEdit.EchoMode.Password)
+        self.input_user = QLineEdit()
+        self.input_password = QLineEdit()
+        self.input_password.setEchoMode(QLineEdit.EchoMode.Password)
 
-        self.role = QComboBox()
-        self.role.addItems(["Administrador", "Chofer", "Supervisor"])
+        self.combo_role = QComboBox()
+        self.combo_role.addItems([
+            "Administrador",
+            "Supervisor",
+            "Chofer"
+        ])
 
-        # eventos entrar
-        self.username.returnPressed.connect(self.attempt_login)
-        self.password.returnPressed.connect(self.attempt_login)
-        self.role.activated.connect(self.attempt_login)
+        self.input_user.returnPressed.connect(self.attempt_login)
+        self.input_password.returnPressed.connect(self.attempt_login)
+        self.combo_role.activated.connect(self.attempt_login)
 
-        form_layout.addRow("Usuario:", self.username)
-        form_layout.addRow("Contraseña:", self.password)
-        form_layout.addRow("Rol:", self.role)
+        form_layout.addRow("Usuario:", self.input_user)
+        form_layout.addRow("Contraseña:", self.input_password)
+        form_layout.addRow("Rol:", self.combo_role)
 
         form_frame.setLayout(form_layout)
         layout.addWidget(form_frame)
 
+        self.lbl_error = QLabel("")
+        self.lbl_error.setStyleSheet("color: #ffb4b4;")
+        self.lbl_error.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.lbl_error)
+
         buttons_layout = QHBoxLayout()
         buttons_layout.setSpacing(20)
 
-        self.login_btn = QPushButton("Iniciar Sesión")
-        self.login_btn.clicked.connect(self.attempt_login)
-        buttons_layout.addWidget(self.login_btn)
+        self.btn_login = QPushButton("Iniciar Sesión")
+        self.btn_login.clicked.connect(self.attempt_login)
+        buttons_layout.addWidget(self.btn_login)
 
-        self.exit_btn = QPushButton("Salir")
-        self.exit_btn.setObjectName("exitButton")
-        self.exit_btn.clicked.connect(self.confirm_exit)
-        buttons_layout.addWidget(self.exit_btn)
+        self.btn_exit = QPushButton("Salir")
+        self.btn_exit.setObjectName("exitButton")
+        self.btn_exit.clicked.connect(self.confirm_exit)
+        buttons_layout.addWidget(self.btn_exit)
 
         layout.addLayout(buttons_layout)
         self.right_container.setLayout(layout)
 
+
     def attempt_login(self):
-        user = self.username.text().strip()
-        pwd = self.password.text().strip()
-        role = self.role.currentText()
+        user = self.input_user.text().strip()
+        pwd = self.input_password.text().strip()
+        role = self.combo_role.currentText()
 
         if not user or not pwd:
-            QMessageBox.warning(self, "Campos vacíos", "Ingresa usuario y contraseña")
+            self.lbl_error.setText("Ingresa usuario y contraseña")
             return
 
-        if validate_user(user, pwd, role):
+        if validate_login(user, pwd, role):
+            self.lbl_error.setText("")
             self.on_login_success(role)
             self.close()
         else:
-            QMessageBox.warning(self, "Error", "Credenciales incorrectas")
+            self.lbl_error.setText("Credenciales incorrectas")
 
-    # evento salir
+
     def keyPressEvent(self, event):
         if event.key() == Qt.Key.Key_Escape:
             self.confirm_exit()

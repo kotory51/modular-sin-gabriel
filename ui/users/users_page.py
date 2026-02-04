@@ -40,7 +40,6 @@ class UsersPage(QWidget):
             layout.addWidget(lbl)
             return
 
-    
         top = QHBoxLayout()
 
         self.search_input = QLineEdit(placeholderText="Buscar usuario…")
@@ -71,7 +70,7 @@ class UsersPage(QWidget):
 
         self.actualizar_vistas()
 
-    # CRUD 
+    
 
     def add_user(self):
         uid = f"USR-{self._next_id:03d}"
@@ -81,7 +80,8 @@ class UsersPage(QWidget):
             "id": uid,
             "nombre": "",
             "apellido": "",
-            "usuario": uid.lower(),
+            "usuario": "",
+            "password": "",
             "telefono": "",
             "email": "",
             "rol": "Chofer",
@@ -107,9 +107,13 @@ class UsersPage(QWidget):
             user["synced"] = 0
             user["last_sync"] = None
 
-            insert_user(user)
-            self.users.append(user)
-            self.actualizar_vistas()
+            try:
+                insert_user(user)
+                self.users.append(user)
+                self.actualizar_vistas()
+
+            except ValueError as e:
+                QMessageBox.warning(self, "Error", str(e))
 
     def edit_user_by_id(self, uid):
         for i, u in enumerate(self.users):
@@ -119,9 +123,14 @@ class UsersPage(QWidget):
                     updated = dlg.get_data()
                     updated["synced"] = 0
                     updated["last_sync"] = None
-                    self.users[i].update(updated)
-                    update_user(self.users[i])
-                    self.actualizar_vistas()
+
+                    try:
+                        self.users[i].update(updated)
+                        update_user(self.users[i])
+                        self.actualizar_vistas()
+
+                    except ValueError as e:
+                        QMessageBox.warning(self, "Error", str(e))
                 return
 
     def delete_user_by_id(self, uid):
@@ -134,7 +143,7 @@ class UsersPage(QWidget):
         self.users = [u for u in self.users if u["id"] != uid]
         self.actualizar_vistas()
 
-    # UI
+#actualizar vitas
 
     def actualizar_vistas(self):
         for c in self.user_cards.values():
@@ -159,7 +168,7 @@ class UsersPage(QWidget):
             full = " ".join(str(v) for v in data.values()).lower()
             card.setVisible(text in full)
 
-    # Sincronización
+    
 
     def sync_user(self, user: dict) -> bool:
         try:
@@ -194,8 +203,8 @@ class UsersPage(QWidget):
 
         self.actualizar_vistas()
 
-    # Exportar CSV
 
+#csv
     def export_csv(self):
         path, _ = QFileDialog.getSaveFileName(
             self, "Exportar CSV", "", "CSV (*.csv)"

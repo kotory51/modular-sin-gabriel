@@ -1,148 +1,139 @@
 from PyQt6.QtWidgets import (
-    QFrame, QLabel, QVBoxLayout, QHBoxLayout, QPushButton, QSizePolicy
+    QFrame, QVBoxLayout, QHBoxLayout,
+    QLabel, QPushButton
 )
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
 
 
 class TarjetaDispositivo(QFrame):
-
-    clicked = pyqtSignal(dict)
-
     def __init__(self, datos: dict, parent=None):
         super().__init__(parent)
 
-        self.setProperty("datos", datos)
+        self.datos = datos
 
+        
+        self.setFixedSize(260, 170)   
         self.setStyleSheet("""
             QFrame {
-                background: white;
-                border: 2px solid #e0e0e0;
-                border-radius: 8px;
-            }
-            QFrame:hover {
-                border-color: #0078d4;
-            }
-            QLabel {
-                color: #333333;
+                background: #ffffff;
+                border: 1px solid #e0e0e0;
+                border-radius: 10px;
             }
         """)
 
-        self.setFixedSize(180, 260)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        root = QVBoxLayout(self)
+        root.setContentsMargins(10, 8, 10, 8)
+        root.setSpacing(6)
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
+       
+        header = QHBoxLayout()
 
-        # nombre
-        self.lbl_nombre = QLabel(datos.get("name", "Sin nombre"))
-        self.lbl_nombre.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.lbl_nombre.setStyleSheet("font-weight: bold; font-size: 12pt;")
-        layout.addWidget(self.lbl_nombre)
+        self.lbl_img = QLabel()
+        self.lbl_img.setFixedSize(48, 48)
+        self.lbl_img.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_img.setStyleSheet("""
+            QLabel {
+                background: #f2f2f2;
+                border-radius: 6px;
+            }
+        """)
+        header.addWidget(self.lbl_img)
 
-        # imagen
-        self.lbl_foto = QLabel()
-        self.lbl_foto.setFixedSize(120, 120)
-        self.lbl_foto.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.lbl_foto)
+        self.lbl_nombre = QLabel()
+        self.lbl_nombre.setStyleSheet("""
+            font-weight: 600;
+            font-size: 13px;
+        """)
+        header.addWidget(self.lbl_nombre)
+        header.addStretch()
 
-        # batería
-        self.lbl_bateria = QLabel()
-        self.lbl_bateria.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        layout.addWidget(self.lbl_bateria)
+        root.addLayout(header)
 
-        layout.addStretch(1)
+       
+        self.lbl_info = QLabel()
+        self.lbl_info.setStyleSheet("""
+            font-size: 11px;
+            color: #555;
+        """)
+        root.addWidget(self.lbl_info)
 
-        # botones
-        btns = QHBoxLayout()
-        btns.setSpacing(5)
+       
+        self.lbl_estado = QLabel()
+        self.lbl_estado.setStyleSheet("""
+            font-size: 10px;
+            color: #888;
+        """)
+        root.addWidget(self.lbl_estado)
+
+        acciones = QHBoxLayout()
 
         self.btn_toggle = QPushButton()
-        self.btn_toggle.setFixedSize(70, 30)
-
-        self.btn_edit = QPushButton("✎")
-        self.btn_edit.setFixedSize(40, 30)
-
-        self.btn_del = QPushButton("🗑")
-        self.btn_del.setFixedSize(40, 30)
-
-        btns.addWidget(self.btn_toggle)
-        btns.addWidget(self.btn_edit)
-        btns.addWidget(self.btn_del)
-        layout.addLayout(btns)
-
-        base_button_style = """
+        self.btn_toggle.setFixedHeight(24)
+        self.btn_toggle.setStyleSheet("""
             QPushButton {
-                border: none;
-                border-radius: 4px;
-                font-size: 10pt;
-                color: white;
-                font-weight: bold;
+                border: 1px solid #ccc;
+                border-radius: 6px;
+                font-size: 11px;
+                padding: 2px 8px;
             }
-            QPushButton:hover { opacity: 0.9; }
-        """
+        """)
 
-        self.btn_edit.setStyleSheet(base_button_style + "background: #0078d4;")
-        self.btn_del.setStyleSheet(base_button_style + "background: #d13438;")
+        self.btn_edit = QPushButton("✏️")
+        self.btn_edit.setFixedSize(28, 24)
 
-        self.actualizar_visual(datos)
+        self.btn_del = QPushButton("🗑️")
+        self.btn_del.setFixedSize(28, 24)
 
-    # actualizar toda la tarjeta
-    
-    def actualizar_visual(self, datos):
-        self.setProperty("datos", datos)
+        acciones.addWidget(self.btn_toggle)
+        acciones.addStretch()
+        acciones.addWidget(self.btn_edit)
+        acciones.addWidget(self.btn_del)
 
-        # nombre
-        self.lbl_nombre.setText(datos.get("name", "Sin nombre"))
+        root.addLayout(acciones)
 
-        # imagen
-        foto = datos.get("foto")
-        if foto:
-            pm = QPixmap(foto).scaled(120, 120,
-                                      Qt.AspectRatioMode.KeepAspectRatio,
-                                      Qt.TransformationMode.SmoothTransformation)
-            self.lbl_foto.setPixmap(pm)
-            self.lbl_foto.setStyleSheet("")
+        self.actualizar_visual(datos, "Sin datos")
+
+ 
+    def actualizar_visual(self, datos: dict, texto_estado: str):
+        self.datos = datos
+
+        self.lbl_nombre.setText(
+            datos.get("name") or f"Dispositivo {datos.get('id', '')}"
+        )
+
+        self.lbl_info.setText(
+            f" {datos.get('battery', '--')}%   "
+            f" {datos.get('temp', '--')}°C   "
+            f" {datos.get('hum', '--')}%"
+        )
+
+        self.lbl_estado.setText(f"📡 {texto_estado}")
+
+        
+        ruta = datos.get("foto")
+        if ruta:
+            pix = QPixmap(ruta)
+            if not pix.isNull():
+                self.lbl_img.setPixmap(
+                    pix.scaled(
+                        self.lbl_img.size(),
+                        Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+                        Qt.TransformationMode.SmoothTransformation
+                    )
+                )
         else:
-            self.lbl_foto.setPixmap(QPixmap())
-            self.lbl_foto.setText("Sin imagen")
-            self.lbl_foto.setStyleSheet("""
-                color: #999999;
-                font-style: italic;
-                background-color: #f5f5f5;
-                border: 1px dashed #e0e0e0;
-            """)
+            self.lbl_img.setPixmap(QPixmap())
 
-        # batería
-        self.actualizar_bateria(datos.get("battery", 100))
+        
+        activo = datos.get("active", True)
 
-        # estado
-        self.actualizar_estado(datos.get("active", True))
+        self.btn_toggle.setText("Desactivar" if activo else "Activar")
 
-    # actualizar estado individual
-
-    def actualizar_estado(self, active: bool):
-        css = """
-            QPushButton {{ background: {bg}; }}
-            QPushButton:hover {{ background: {hover}; }}
-        """
-        if active:
-            self.btn_toggle.setText("Activo")
-            self.btn_toggle.setStyleSheet(css.format(bg="#107c10", hover="#0f6f0e"))
-        else:
-            self.btn_toggle.setText("Inactivo")
-            self.btn_toggle.setStyleSheet(css.format(bg="#d13438", hover="#b12d31"))
-
-    def actualizar_bateria(self, battery_val: int):
-        color = "#d13438" if battery_val < 20 else "#107c10"
-        self.lbl_bateria.setText(f"Batería: {battery_val}%")
-        self.lbl_bateria.setStyleSheet(f"color: {color}; font-weight: bold;")
-
-    # click
-    def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            if not any(btn.underMouse() for btn in (self.btn_toggle, self.btn_edit, self.btn_del)):
-                self.clicked.emit(self.property("datos"))
-        super().mousePressEvent(event)
+        self.setStyleSheet("""
+            QFrame {
+                background: %s;
+                border: 1px solid #e0e0e0;
+                border-radius: 10px;
+            }
+        """ % ("#ffffff" if activo else "#f2f2f2"))

@@ -1,4 +1,3 @@
-# ui/users/users_card.py
 from PyQt6.QtWidgets import (
     QFrame, QLabel, QVBoxLayout, QHBoxLayout, QPushButton, QSizePolicy
 )

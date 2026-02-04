@@ -32,7 +32,6 @@ class InsumoDialog(QDialog):
         main.setContentsMargins(12, 12, 12, 12)
         main.setSpacing(12)
 
-        # top
 
         top_row = QHBoxLayout()
         top_row.setSpacing(10)

@@ -1,13 +1,20 @@
-# ui/users/users_form.py
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QFormLayout, QLineEdit, QLabel, QPushButton,
-    QFileDialog, QHBoxLayout, QCheckBox, QDateEdit, QMessageBox, QComboBox
+    QDialog, QVBoxLayout, QGridLayout, QFormLayout, QLineEdit,
+    QPushButton, QHBoxLayout, QMessageBox, QComboBox, QLabel,
+    QFileDialog, QTextEdit, QGroupBox, QScrollArea, QWidget, QCheckBox
 )
+from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
-from PyQt6.QtCore import Qt, QDate
 import re
-from typing import Optional
 import os
+
+
+def is_valid_email(email: str) -> bool:
+    return re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email) is not None
+
+
+def is_valid_rfc(rfc: str) -> bool:
+    return re.match(r"^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$", rfc.upper()) is not None
 
 
 class UserDialog(QDialog):
@@ -15,218 +22,229 @@ class UserDialog(QDialog):
     def __init__(self, data=None, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Agregar / Editar usuario")
-        self.setMinimumWidth(520)
+        self.resize(950, 650)
+
         self.data = data or {}
 
-        layout = QVBoxLayout(self)
-        form = QFormLayout()
-        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        # ✅ FIX DEFINITIVO
+        self.is_edit = bool(self.data.get("usuario"))
 
-        # Datos personales
+        # ---------- SCROLL ----------
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
+        content = QWidget()
+        scroll.setWidget(content)
+        content_layout = QVBoxLayout(content)
+
+        # ---------- CAMPOS ----------
         self.inp_nombre = QLineEdit(self.data.get("nombre", ""))
         self.inp_apellido = QLineEdit(self.data.get("apellido", ""))
-        self.inp_usuario = QLineEdit(self.data.get("usuario", ""))
-        self.inp_telefono = QLineEdit(self.data.get("telefono", ""))
-        self.inp_email = QLineEdit(self.data.get("email", ""))
 
-        # Rol con las 3 opciones
+        self.inp_usuario = QLineEdit(self.data.get("usuario", ""))
+        self.inp_usuario.setReadOnly(self.is_edit)
+        self.inp_usuario.setEnabled(True)
+        self.inp_usuario.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
+        self.inp_usuario.setStyleSheet("""
+            QLineEdit {
+                background-color: #ffffff;
+                color: #000000;
+                selection-background-color: #0078d4;
+                selection-color: #ffffff;
+            }
+        """)
+
+        self.inp_password = QLineEdit()
+        self.inp_password.setEchoMode(QLineEdit.EchoMode.Password)
+
         self.inp_rol = QComboBox()
         self.inp_rol.addItems(["Administrador", "Supervisor", "Chofer"])
-        # si viene rol, seleccionarla
-        if "rol" in self.data and isinstance(self.data["rol"], str):
-            idx = self.inp_rol.findText(self.data["rol"])
-            if idx >= 0:
-                self.inp_rol.setCurrentIndex(idx)
+        self.inp_rol.setCurrentText(self.data.get("rol", "Chofer"))
 
-        self.inp_rfc = QLineEdit(self.data.get("rfc", ""))  # RFC
+        self.inp_telefono = QLineEdit(self.data.get("telefono", ""))
+        self.inp_email = QLineEdit(self.data.get("email", ""))
+        self.inp_rfc = QLineEdit(self.data.get("rfc", ""))
 
-        form.addRow("Nombre:", self.inp_nombre)
-        form.addRow("Apellido:", self.inp_apellido)
-        form.addRow("Usuario:", self.inp_usuario)
-        form.addRow("Teléfono:", self.inp_telefono)
-        form.addRow("Email:", self.inp_email)
-        form.addRow("Rol:", self.inp_rol)
-        form.addRow("RFC:", self.inp_rfc)
-
-        # Info médica / operativa
         self.inp_tipo_sangre = QLineEdit(self.data.get("tipo_sangre", ""))
-        self.inp_alergias = QLineEdit(self.data.get("alergias", ""))
-        self.inp_enfermedades = QLineEdit(self.data.get("enfermedades", ""))
-        self.inp_notas = QLineEdit(self.data.get("notas_medicas", ""))
-        self.chk_apto = QCheckBox()
-        self.chk_apto.setChecked(bool(self.data.get("apto_operar", False)))
+        self.inp_alergias = QTextEdit(self.data.get("alergias", ""))
+        self.inp_enfermedades = QTextEdit(self.data.get("enfermedades", ""))
+        self.inp_notas = QTextEdit(self.data.get("notas_medicas", ""))
 
-        form.addRow("Tipo de sangre:", self.inp_tipo_sangre)
-        form.addRow("Alergias:", self.inp_alergias)
-        form.addRow("Enfermedades:", self.inp_enfermedades)
-        form.addRow("Notas médicas:", self.inp_notas)
-        form.addRow("Apto para operar:", self.chk_apto)
+        for t in (self.inp_alergias, self.inp_enfermedades, self.inp_notas):
+            t.setFixedHeight(70)
 
-        layout.addLayout(form)
+        self.chk_apto = QCheckBox("Apto para operar")
+        self.chk_apto.setChecked(bool(self.data.get("apto_operar", 0)))
 
-        # Foto y documentos (INE / Licencia)
-        docs_layout = QHBoxLayout()
-        # foto
-        vfoto = QVBoxLayout()
-        self.lbl_photo = QLabel()
-        self.lbl_photo.setFixedSize(120, 120)
-        self._update_photo(self.data.get("foto"))
-        btn_photo = QPushButton("Cargar foto")
-        btn_photo.clicked.connect(self._load_photo)
-        vfoto.addWidget(self.lbl_photo)
-        vfoto.addWidget(btn_photo)
-        docs_layout.addLayout(vfoto)
+        # ---------- DOCUMENTOS ----------
+        self.lbl_foto = self._img_label()
+        self.lbl_ine = self._img_label()
+        self.lbl_licencia = self._img_label()
 
-        # INE
-        v1 = QVBoxLayout()
-        self.lbl_ine = QLabel(self._short_name(self.data.get("ine")))
-        btn_ine = QPushButton("Subir INE")
-        btn_ine.clicked.connect(self._load_ine)
-        v1.addWidget(self.lbl_ine)
-        v1.addWidget(btn_ine)
-        docs_layout.addLayout(v1)
+        self.btn_foto = QPushButton("Subir foto")
+        self.btn_ine = QPushButton("Subir INE")
+        self.btn_licencia = QPushButton("Subir licencia")
 
-        # Licencia
-        v2 = QVBoxLayout()
-        self.lbl_lic = QLabel(self._short_name(self.data.get("licencia")))
-        btn_lic = QPushButton("Subir licencia")
-        btn_lic.clicked.connect(self._load_lic)
-        v2.addWidget(self.lbl_lic)
-        v2.addWidget(btn_lic)
+        self.btn_foto.clicked.connect(lambda: self._load_image("foto", self.lbl_foto))
+        self.btn_ine.clicked.connect(lambda: self._load_image("ine", self.lbl_ine))
+        self.btn_licencia.clicked.connect(lambda: self._load_image("licencia", self.lbl_licencia))
 
-        # Número y expiración
-        self.inp_lic_num = QLineEdit(self.data.get("licencia_num", ""))
-        self.inp_lic_exp = QDateEdit()
-        self.inp_lic_exp.setCalendarPopup(True)
-        if self.data.get("licencia_exp"):
-            try:
-                y, m, d = (int(x) for x in str(self.data.get("licencia_exp")).split("-"))
-                self.inp_lic_exp.setDate(QDate(y, m, d))
-            except Exception:
-                self.inp_lic_exp.setDate(QDate.currentDate())
-        else:
-            self.inp_lic_exp.setDate(QDate.currentDate())
+        self._load_existing_images()
 
-        v2.addWidget(QLabel("Núm. licencia:"))
-        v2.addWidget(self.inp_lic_num)
-        v2.addWidget(QLabel("Vence:"))
-        v2.addWidget(self.inp_lic_exp)
-        docs_layout.addLayout(v2)
+        # ---------- GRUPOS ----------
+        box_general = QGroupBox("Datos generales")
+        f1 = QFormLayout(box_general)
+        f1.addRow("Nombre:", self.inp_nombre)
+        f1.addRow("Apellido:", self.inp_apellido)
+        f1.addRow("Usuario:", self.inp_usuario)
+        f1.addRow("Contraseña:", self.inp_password)
+        f1.addRow("Rol:", self.inp_rol)
 
-        layout.addLayout(docs_layout)
+        box_contacto = QGroupBox("Contacto")
+        f2 = QFormLayout(box_contacto)
+        f2.addRow("Teléfono:", self.inp_telefono)
+        f2.addRow("Email:", self.inp_email)
+        f2.addRow("RFC:", self.inp_rfc)
 
-        # Botones
+        box_medico = QGroupBox("Información médica")
+        f3 = QFormLayout(box_medico)
+        f3.addRow("Tipo de sangre:", self.inp_tipo_sangre)
+        f3.addRow("Alergias:", self.inp_alergias)
+        f3.addRow("Enfermedades:", self.inp_enfermedades)
+        f3.addRow("Notas médicas:", self.inp_notas)
+        f3.addRow("", self.chk_apto)
+
+        box_docs = QGroupBox("Documentos")
+        docs = QGridLayout(box_docs)
+        docs.addWidget(self.lbl_foto, 0, 0)
+        docs.addWidget(self.btn_foto, 1, 0)
+        docs.addWidget(self.lbl_ine, 0, 1)
+        docs.addWidget(self.btn_ine, 1, 1)
+        docs.addWidget(self.lbl_licencia, 0, 2)
+        docs.addWidget(self.btn_licencia, 1, 2)
+
+        grid = QGridLayout()
+        grid.addWidget(box_general, 0, 0)
+        grid.addWidget(box_contacto, 0, 1)
+        grid.addWidget(box_medico, 1, 0, 1, 2)
+        grid.addWidget(box_docs, 2, 0, 1, 2)
+
+        content_layout.addLayout(grid)
+        content_layout.addStretch()
+
+        # ---------- BOTONES ----------
+        btn_save = QPushButton("Aceptar")
+        btn_cancel = QPushButton("Cancelar")
+        btn_save.clicked.connect(self.accept)
+        btn_cancel.clicked.connect(self.reject)
+
         btns = QHBoxLayout()
-        self.btn_save = QPushButton("Guardar")
-        self.btn_cancel = QPushButton("Cancelar")
-        self.btn_save.clicked.connect(self._on_save)
-        self.btn_cancel.clicked.connect(self.reject)
         btns.addStretch()
-        btns.addWidget(self.btn_save)
-        btns.addWidget(self.btn_cancel)
-        layout.addLayout(btns)
+        btns.addWidget(btn_save)
+        btns.addWidget(btn_cancel)
 
-        # Validaciones en tiempo real
-        self.inp_email.textChanged.connect(self._validate_email)
-        self.inp_telefono.textChanged.connect(self._validate_phone)
-        self.inp_rfc.textChanged.connect(self._validate_rfc)
+        main = QVBoxLayout(self)
+        main.addWidget(scroll)
+        main.addLayout(btns)
 
-    # Utilidades de carga y visualización
+        if not self.is_edit:
+            self.inp_usuario.setFocus()
 
-    def _short_name(self, path: Optional[str]) -> str:
-        if not path:
-            return "No subido"
-        return (path.split(os.path.sep)[-1])[:32]
+    # ---------- HELPERS ----------
 
-    def _load_photo(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Seleccionar foto", "", "Imágenes (*.png *.jpg *.jpeg *.bmp)")
+    def _img_label(self):
+        lbl = QLabel("Sin imagen")
+        lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl.setFixedSize(120, 120)
+        lbl.setStyleSheet("border:1px dashed #999;")
+        return lbl
+
+    def _load_image(self, field, lbl):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Seleccionar imagen", "", "Imágenes (*.png *.jpg *.jpeg)"
+        )
         if path:
-            self.data["foto"] = path
-            self._update_photo(path)
+            self.data[field] = path
+            pix = QPixmap(path).scaled(
+                120, 120,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation
+            )
+            lbl.setPixmap(pix)
 
-    def _load_ine(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Seleccionar INE", "", "PDF, imágenes (*.pdf *.png *.jpg *.jpeg)")
-        if path:
-            self.data["ine"] = path
-            self.lbl_ine.setText(self._short_name(path))
+    def _load_existing_images(self):
+        for field, lbl in (
+            ("foto", self.lbl_foto),
+            ("ine", self.lbl_ine),
+            ("licencia", self.lbl_licencia)
+        ):
+            path = self.data.get(field)
+            if path and os.path.exists(path):
+                pix = QPixmap(path).scaled(
+                    120, 120,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation
+                )
+                lbl.setPixmap(pix)
 
-    def _load_lic(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Seleccionar Licencia", "", "PDF, imágenes (*.pdf *.png *.jpg *.jpeg)")
-        if path:
-            self.data["licencia"] = path
-            self.lbl_lic.setText(self._short_name(path))
+    # ---------- VALIDACIÓN ----------
 
-    def _update_photo(self, path):
-        if path:
-            try:
-                pm = QPixmap(path).scaled(120, 120, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
-                self.lbl_photo.setPixmap(pm)
-            except Exception:
-                self.lbl_photo.setText("No foto")
-        else:
-            self.lbl_photo.setText("Sin foto")
-
-    # Validaciones
-
-    def _validate_email(self):
-        text = self.inp_email.text().strip()
-        if not text:
-            self.inp_email.setStyleSheet("")
-            return
-        ok = re.match(r"^[^@]+@[^@]+\.[^@]+$", text) is not None
-        self.inp_email.setStyleSheet("" if ok else "border: 1px solid #d13438;")
-
-    def _validate_phone(self):
-        text = self.inp_telefono.text().strip()
-        if not text:
-            self.inp_telefono.setStyleSheet("")
-            return
-        ok = re.match(r"^[0-9\-\+\s]{7,20}$", text) is not None
-        self.inp_telefono.setStyleSheet("" if ok else "border: 1px solid #d13438;")
-
-    def _validate_rfc(self):
-        text = self.inp_rfc.text().strip().upper()
-        if not text:
-            self.inp_rfc.setStyleSheet("")
-            return
-        # RFC 12 o 13 caracteres alfanuméricos
-        ok = re.match(r"^[A-Z0-9]{12,13}$", text) is not None
-        self.inp_rfc.setStyleSheet("" if ok else "border: 1px solid #d13438;")
-
-    # guardar
-
-    def _on_save(self):
-        # validacion nombre
-        if not self.inp_nombre.text().strip():
-            QMessageBox.warning(self, "Validación", "El nombre es obligatorio.")
-            return
-        # email
-        if self.inp_email.text().strip() and not re.match(r"^[^@]+@[^@]+\.[^@]+$", self.inp_email.text().strip()):
-            QMessageBox.warning(self, "Validación", "Email inválido.")
+    def accept(self):
+        if not self.inp_nombre.text().strip() \
+           or not self.inp_apellido.text().strip() \
+           or not self.inp_usuario.text().strip():
+            QMessageBox.warning(self, "Error", "Nombre, apellido y usuario son obligatorios")
             return
 
-        self.accept()
+        if not self.is_edit and not self.inp_password.text().strip():
+            QMessageBox.warning(self, "Error", "La contraseña es obligatoria")
+            return
 
-    def get_data(self) -> dict:
+        if self.inp_email.text() and not is_valid_email(self.inp_email.text()):
+            QMessageBox.warning(self, "Error", "Email inválido")
+            return
+
+        if self.inp_rfc.text() and not is_valid_rfc(self.inp_rfc.text()):
+            QMessageBox.warning(self, "Error", "RFC inválido")
+            return
+
+        super().accept()
+
+    # ---------- DATA (🔥 LO QUE FALTABA) ----------
+
+    def get_data(self):
+        completos = all([
+            self.inp_nombre.text().strip(),
+            self.inp_apellido.text().strip(),
+            self.inp_usuario.text().strip(),
+            self.data.get("foto"),
+            self.data.get("ine"),
+            self.data.get("licencia")
+        ])
+
         return {
             "id": self.data.get("id"),
             "nombre": self.inp_nombre.text().strip(),
             "apellido": self.inp_apellido.text().strip(),
             "usuario": self.inp_usuario.text().strip(),
+            "password": self.inp_password.text().strip() or self.data.get("password"),
+            "rol": self.inp_rol.currentText(),
             "telefono": self.inp_telefono.text().strip(),
             "email": self.inp_email.text().strip(),
-            "rol": self.inp_rol.currentText(),
-            "rfc": self.inp_rfc.text().strip().upper(),
+            "rfc": self.inp_rfc.text().strip(),
             "tipo_sangre": self.inp_tipo_sangre.text().strip(),
-            "alergias": self.inp_alergias.text().strip(),
-            "enfermedades": self.inp_enfermedades.text().strip(),
-            "notas_medicas": self.inp_notas.text().strip(),
-            "apto_operar": self.chk_apto.isChecked(),
+            "alergias": self.inp_alergias.toPlainText().strip(),
+            "enfermedades": self.inp_enfermedades.toPlainText().strip(),
+            "notas_medicas": self.inp_notas.toPlainText().strip(),
+            "apto_operar": 1 if self.chk_apto.isChecked() else 0,
             "foto": self.data.get("foto"),
             "ine": self.data.get("ine"),
             "licencia": self.data.get("licencia"),
-            "licencia_num": self.inp_lic_num.text().strip(),
-            "licencia_exp": self.inp_lic_exp.date().toString("yyyy-MM-dd"),
-            "estado_documentos": "Validado" if (self.data.get("ine") and self.data.get("licencia")) else "Pendiente",
-            "history": self.data.get("history", [])
+            "licencia_num": self.data.get("licencia_num", ""),
+            "licencia_exp": self.data.get("licencia_exp", ""),
+            "estado_documentos": "Completos" if completos else "Pendiente",
+            "synced": self.data.get("synced", 0),
+            "last_sync": self.data.get("last_sync")
         }

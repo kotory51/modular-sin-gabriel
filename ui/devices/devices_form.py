@@ -1,113 +1,145 @@
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QFileDialog, QCheckBox, QFormLayout
+    QDialog, QVBoxLayout, QFormLayout,
+    QLineEdit, QPushButton, QLabel,
+    QFileDialog, QHBoxLayout, QComboBox
 )
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt
+import os
+import serial.tools.list_ports
 
 
 class DispositivoDialog(QDialog):
-    def __init__(self, datos=None, parent=None):
+    def __init__(self, datos: dict | None = None, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Agregar / Editar dispositivo")
-        self.setMinimumWidth(400)
-        self.datos = datos or {}
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(15, 15, 15, 15)
-        layout.setSpacing(15)
+        self.setWindowTitle("Dispositivo")
+        self.setMinimumWidth(380)
 
+        self.datos = datos if isinstance(datos, dict) else {}
+
+        root = QVBoxLayout(self)
         form = QFormLayout()
-        form.setHorizontalSpacing(20)
-        form.setVerticalSpacing(10)
 
-        # ID
-        self.inp_id = QLineEdit(self.datos.get("id", ""))
-        self.inp_id.setReadOnly(True)
-        form.addRow("ID:", self.inp_id)
+       
+        self.input_id = QLineEdit()
+        self.input_nombre = QLineEdit()
 
-        # Nombre
-        self.inp_name = QLineEdit(self.datos.get("name", ""))
-        form.addRow("Nombre:", self.inp_name)
+        form.addRow("ID:", self.input_id)
+        form.addRow("Nombre:", self.input_nombre)
 
-        # Conexiones
-        self.inp_connections = QLineEdit(self.datos.get("connections", ""))
-        form.addRow("Conexiones:", self.inp_connections)
+        self.combo_com = QComboBox()
+        self.combo_baud = QComboBox()
 
-        # Ubicación
-        self.inp_location = QLineEdit(self.datos.get("location", ""))
-        form.addRow("Ubicación:", self.inp_location)
+        self._cargar_puertos()
+        self.combo_baud.addItems([
+            "9600", "19200", "38400", "57600", "115200"
+        ])
 
-        # Activo
-        self.chk_active = QCheckBox()
-        self.chk_active.setChecked(self.datos.get("active", True))
-        form.addRow("Activo:", self.chk_active)
+        form.addRow("Puerto COM:", self.combo_com)
+        form.addRow("Baudios:", self.combo_baud)
 
-        layout.addLayout(form)
+        root.addLayout(form)
 
-        # FOTO
-        photo_box = QHBoxLayout()
-        self.photo_path = self.datos.get("foto", "")
-        self.lbl_photo = QLabel()
-        self.lbl_photo.setFixedSize(150, 150)
-        self._update_photo(self.photo_path)
-        photo_box.addWidget(self.lbl_photo)
 
-        btn_foto = QPushButton("Cargar foto")
-        btn_foto.clicked.connect(self.cargar_foto)
-        photo_box.addWidget(btn_foto)
-        photo_box.addStretch()
-        layout.addLayout(photo_box)
+        self.lbl_img = QLabel("Sin imagen")
+        self.lbl_img.setFixedSize(260, 140)
+        self.lbl_img.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.lbl_img.setStyleSheet("""
+            QLabel {
+                border: 1px dashed #aaa;
+                border-radius: 6px;
+                background: #fafafa;
+            }
+        """)
+        root.addWidget(self.lbl_img, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        # BOTONES
-        buttons = QHBoxLayout()
-        btn_save = QPushButton("Guardar")
-        btn_save.clicked.connect(self.accept)
+        self.btn_img = QPushButton("Seleccionar imagen")
+        self.btn_img.clicked.connect(self.seleccionar_imagen)
+        root.addWidget(self.btn_img)
+
+        botones = QHBoxLayout()
+        btn_ok = QPushButton("Guardar")
         btn_cancel = QPushButton("Cancelar")
+
+        btn_ok.clicked.connect(self.accept)
         btn_cancel.clicked.connect(self.reject)
-        buttons.addStretch()
-        buttons.addWidget(btn_save)
-        buttons.addWidget(btn_cancel)
-        layout.addLayout(buttons)
 
-    def cargar_foto(self):
+        botones.addStretch()
+        botones.addWidget(btn_ok)
+        botones.addWidget(btn_cancel)
+
+        root.addLayout(botones)
+
+        self._cargar_datos()
+
+    def _cargar_puertos(self):
+        self.combo_com.clear()
+        puertos = serial.tools.list_ports.comports()
+
+        for p in puertos:
+            self.combo_com.addItem(p.device)
+
+        if not puertos:
+            self.combo_com.addItem("N/A")
+
+   
+    def _cargar_datos(self):
+        self.input_id.setText(self.datos.get("id", ""))
+        self.input_nombre.setText(self.datos.get("name", ""))
+
+        
+        com = self.datos.get("com")
+        if com:
+            idx = self.combo_com.findText(com)
+            if idx >= 0:
+                self.combo_com.setCurrentIndex(idx)
+
+       
+        baud = str(self.datos.get("baud", "115200"))
+        idx = self.combo_baud.findText(baud)
+        if idx >= 0:
+            self.combo_baud.setCurrentIndex(idx)
+
+      
+        ruta = self.datos.get("foto")
+        if ruta and os.path.exists(ruta):
+            pix = QPixmap(ruta)
+            self.lbl_img.setPixmap(
+                pix.scaled(
+                    self.lbl_img.size(),
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation
+                )
+            )
+
+   
+    def seleccionar_imagen(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, "Seleccionar imagen", "", "Imágenes (*.png *.jpg *.jpeg *.bmp)"
+            self, "Seleccionar imagen", "",
+            "Imágenes (*.png *.jpg *.jpeg)"
         )
-        if path:
-            self.photo_path = path
-            self._update_photo(path)
 
-    def _update_photo(self, path):
-        if path:
-            pm = QPixmap(path).scaled(
-                150, 150,
+        if not path:
+            return
+
+        self.datos["foto"] = path
+        pix = QPixmap(path)
+        self.lbl_img.setPixmap(
+            pix.scaled(
+                self.lbl_img.size(),
                 Qt.AspectRatioMode.KeepAspectRatio,
                 Qt.TransformationMode.SmoothTransformation
             )
-            self.lbl_photo.setPixmap(pm)
-        else:
-            self.lbl_photo.setText("Sin imagen")
-            self.lbl_photo.setStyleSheet("""
-                color: gray; 
-                font-style: italic;
-                border: 1px dashed #aaa;
-                qproperty-alignment: AlignCenter;
-            """)
+        )
 
-    def get_datos(self):
+   
+    def get_datos(self) -> dict:
         return {
-            "id": self.inp_id.text(),
-            "name": self.inp_name.text(),
-            "connections": self.inp_connections.text(),
-            "location": self.inp_location.text(),
-            "active": self.chk_active.isChecked(),
-            "battery": self.datos.get("battery", 100),
-            "foto": self.photo_path,
-            "temp_amb": self.datos.get("temp_amb"),
-            "humedad": self.datos.get("humedad"),
-            "golpe": self.datos.get("golpe"),
-            "luz": self.datos.get("luz"),
-            "temp_sonda": self.datos.get("temp_sonda"),
-            "punto_condensacion": self.datos.get("punto_condensacion"),
+            "id": self.input_id.text().strip(),
+            "name": self.input_nombre.text().strip(),
+            "foto": self.datos.get("foto"),
+            "com": self.combo_com.currentText(),
+            "baud": int(self.combo_baud.currentText()),
+            "active": self.datos.get("active", True)
         }
