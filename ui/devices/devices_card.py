@@ -103,7 +103,7 @@ class TarjetaDispositivo(QFrame):
         )
 
         self.lbl_info.setText(
-            f" {datos.get('battery', '--')}%   "
+            f" {datos.get('battery', '--')}V   "
             f" {datos.get('temp', '--')}°C   "
             f" {datos.get('hum', '--')}%"
         )

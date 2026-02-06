@@ -1,5 +1,6 @@
 import sqlite3
 from pathlib import Path
+from datetime import datetime
 
 DB_PATH = Path("data/insumos.db")
 
@@ -13,6 +14,7 @@ def conn():
 
 def init_db():
     with conn() as c:
+        # ===== INSUMOS =====
         c.execute("""
         CREATE TABLE IF NOT EXISTS insumos (
             id TEXT PRIMARY KEY,
@@ -46,17 +48,28 @@ def init_db():
         )
         """)
 
+        # ===== STOCK MOVIMIENTOS =====
         c.execute("""
         CREATE TABLE IF NOT EXISTS stock_movimientos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            insumo_id TEXT,
-            tipo TEXT,
-            cantidad INTEGER,
+            insumo_id TEXT NOT NULL,
+
+            tipo TEXT NOT NULL,
+            cantidad INTEGER NOT NULL,
+            stock_resultante INTEGER NOT NULL,
+
             motivo TEXT,
-            fecha TEXT DEFAULT CURRENT_TIMESTAMP
+            referencia TEXT,
+            usuario TEXT,
+
+            fecha TEXT NOT NULL,
+
+            FOREIGN KEY(insumo_id) REFERENCES insumos(id)
         )
         """)
 
+
+# ===== NORMALIZACIÓN =====
 
 def normalize(insumo: dict) -> dict:
     base = {
@@ -95,10 +108,13 @@ def normalize(insumo: dict) -> dict:
     return base
 
 
+# ===== CRUD INSUMOS =====
+
 def fetch_all():
     with conn() as c:
-        cur = c.execute("SELECT * FROM insumos ORDER BY id")
-        return [dict(r) for r in cur.fetchall()]
+        return [dict(r) for r in c.execute(
+            "SELECT * FROM insumos ORDER BY id"
+        ).fetchall()]
 
 
 def insert(insumo: dict):
@@ -165,15 +181,62 @@ def next_id(tipo: str) -> int:
         return int(r["id"].split("-")[1]) + 1 if r else 1
 
 
-# ===== STOCK =====
+# ===== STOCK (UNIFICADO) =====
+
+def registrar_stock(
+    insumo_id: str,
+    cantidad: int,
+    tipo: str,
+    motivo: str = "",
+    referencia: str = "",
+    usuario: str = "sistema"
+):
+    with conn() as c:
+        row = c.execute(
+            "SELECT stock_actual FROM insumos WHERE id=?",
+            (insumo_id,)
+        ).fetchone()
+
+        if not row:
+            raise ValueError("Insumo no encontrado")
+
+        stock_actual = row["stock_actual"]
+        nuevo_stock = stock_actual + cantidad
+
+        if nuevo_stock < 0:
+            raise ValueError("Stock insuficiente")
+
+        # actualizar stock
+        c.execute(
+            "UPDATE insumos SET stock_actual=? WHERE id=?",
+            (nuevo_stock, insumo_id)
+        )
+
+        # registrar movimiento
+        c.execute("""
+            INSERT INTO stock_movimientos (
+                insumo_id, tipo, cantidad,
+                stock_resultante, motivo,
+                referencia, usuario, fecha
+            ) VALUES (?,?,?,?,?,?,?,?)
+        """, (
+            insumo_id,
+            tipo,
+            cantidad,
+            nuevo_stock,
+            motivo,
+            referencia,
+            usuario,
+            datetime.now().isoformat(timespec="seconds")
+        ))
+
+
+# ===== COMPATIBILIDAD CON CÓDIGO ACTUAL =====
 
 def add_stock(insumo_id: str, cantidad: int, motivo: str):
-    with conn() as c:
-        c.execute(
-            "UPDATE insumos SET stock_actual = stock_actual + ? WHERE id=?",
-            (cantidad, insumo_id)
-        )
-        c.execute("""
-            INSERT INTO stock_movimientos(insumo_id,tipo,cantidad,motivo)
-            VALUES (?,?,?,?)
-        """, (insumo_id, "ENTRADA" if cantidad > 0 else "SALIDA", cantidad, motivo))
+    registrar_stock(
+        insumo_id=insumo_id,
+        cantidad=cantidad,
+        tipo="ENTRADA" if cantidad > 0 else "SALIDA",
+        motivo=motivo
+    )

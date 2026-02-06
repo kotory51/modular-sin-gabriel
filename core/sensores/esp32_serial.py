@@ -16,13 +16,24 @@ class ESP32Serial:
             self.ser = serial.Serial(
                 port=puerto,
                 baudrate=baudios,
-                timeout=1
+                timeout=2,
+                write_timeout=2
             )
-            time.sleep(2)  
+            time.sleep(2.5)  # Esperar a que ESP32 esté listo
             self.conectado = True
             print(f"[ESP32] Conectado a {puerto}")
             return True
 
+        except FileNotFoundError as e:
+            print(f"[ESP32] Puerto {puerto} no encontrado: {e}")
+            self.conectado = False
+            self.ser = None
+            return False
+        except PermissionError as e:
+            print(f"[ESP32] Permiso denegado en {puerto}: {e}")
+            self.conectado = False
+            self.ser = None
+            return False
         except Exception as e:
             print(f"[ESP32] Error conexión: {e}")
             self.conectado = False
@@ -44,10 +55,23 @@ class ESP32Serial:
         except (json.JSONDecodeError, UnicodeDecodeError):
             return None
 
-        except Exception as e:
+        except serial.SerialException as e:
+            # Error de conexión real (puerto desconectado, etc)
             print(f"[ESP32] Desconectado ({e})")
             self.conectado = False
             self.cerrar()
+            return None
+        
+        except Exception as e:
+            # Errores críticos del puerto (ClearCommError, PermissionError, etc)
+            # que requieren reconexión
+            if "ClearCommError" in str(e) or "PermissionError" in str(e):
+                print(f"[ESP32] Error crítico, reconectando ({e})")
+                self.conectado = False
+                self.cerrar()
+            else:
+                # Otros errores transitorios - no marcar como desconectado
+                print(f"[ESP32] Error temporal (ignorado): {e}")
             return None
 
    

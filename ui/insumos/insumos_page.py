@@ -163,7 +163,8 @@ class InsumosPage(QWidget):
             "fecha_fabricacion": "",
             "registro_sanitario": "",
             "foto": None,
-            "stock_actual": 0
+            "stock_actual": 0,
+            "stock_minimo": 10
         }
 
         insert(base)

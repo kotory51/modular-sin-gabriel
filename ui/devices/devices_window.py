@@ -12,6 +12,7 @@ from PyQt6.QtCore import QTimer
 from ui.devices.devices_card import TarjetaDispositivo
 from ui.devices.devices_form import DispositivoDialog
 from ui.devices.puertos import Puertos
+from database.devices_service import get_device_service
 
 UMBRAL_DESCONEXION = 10
 
@@ -23,6 +24,9 @@ class DevicesPage(QWidget):
         self.worker = esp32_worker
         self.devices: dict[str, dict] = {}
         self.cards = {}
+        
+        # Inicializar servicio de BD
+        self.device_service = get_device_service()
 
         root = QVBoxLayout(self)
 
@@ -75,6 +79,44 @@ class DevicesPage(QWidget):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.actualizar_vistas)
         self.timer.start(1000)
+        
+        # Cargar dispositivos existentes desde la BD
+        self.cargar_dispositivos_desde_bd()
+   
+    def cargar_dispositivos_desde_bd(self):
+        """Carga los dispositivos y sus últimos datos desde la BD"""
+        try:
+            # Obtener último registro de cada dispositivo
+            latest_data = self.device_service.get_latest_all_devices()
+            
+            for record in latest_data:
+                dev_id = record["device_id"]
+                
+                # Evitar duplicados
+                if dev_id in self.devices:
+                    continue
+                
+                # Crear entrada de dispositivo con todas las claves necesarias
+                self.devices[dev_id] = {
+                    "id": dev_id,
+                    "name": f"Dispositivo {dev_id}",
+                    "active": True,
+                    "com": None,  # Se actualiza cuando llegan datos del ESP32
+                    "baud": None,  # Se actualiza cuando llegan datos del ESP32
+                    "battery": int(record.get("bateria", 100)) if record.get("bateria") else 100,
+                    "temp": record.get("temp_sonda"),  # Nombre consistente
+                    "hum": record.get("humedad"),  # Nombre consistente
+                    "luz": record.get("luz"),
+                    "last_signal_ts": time.time()
+                }
+            
+            # Actualizar UI
+            self.actualizar_vistas()
+            
+            if latest_data:
+                print(f"[DevicesPage] Cargados {len(latest_data)} dispositivos desde BD")
+        except Exception as e:
+            print(f"[ERROR] No se pudieron cargar dispositivos desde BD: {e}")
 
    
     def configurar_esp32(self):
@@ -93,16 +135,25 @@ class DevicesPage(QWidget):
         if not dev_id:
             return
 
+        # GUARDAR ENBASE DE DATOS
+        try:
+            self.device_service.save_device_data(data)
+        except Exception as e:
+            print(f"[ERROR BD] No se pudo guardar dispositivo {dev_id}: {e}")
+
         now = time.time()
 
         if dev_id in self.devices:
             d = self.devices[dev_id]
-
-            if (now - d.get("last_signal_ts", 0)) < UMBRAL_DESCONEXION:
-                print(f"[ESP32] Dispositivo {dev_id} reconectando")
-                d["active"] = True
+            estaba_inactivo = not d.get("active", True)
+            
+            # Si llegan datos AHORA, está activo (acaba de conectarse)
+            d["active"] = True
+            
+            # Si se reconectó (estaba inactivo y ahora tiene datos)
+            if estaba_inactivo:
+                print(f"[ESP32] Dispositivo {dev_id} RECONECTADO ✓")
         else:
-
             d = self.devices.setdefault(dev_id, {
                 "id": dev_id,
                 "name": f"Dispositivo {dev_id}",
@@ -111,14 +162,13 @@ class DevicesPage(QWidget):
                 "baud": None,
                 "last_signal_ts": now
             })
+            estaba_inactivo = False
 
         if d["com"] is None and self.worker.serial.ser:
             d["com"] = self.worker.serial.ser.port
             d["baud"] = self.worker.serial.ser.baudrate
 
-        if not d.get("active", True):
-            return
-
+        # Actualizar siempre los datos del sensor
         d.update({
             "battery": data.get("Bat"),
             "temp": data.get("T_Sonda"),
@@ -126,6 +176,15 @@ class DevicesPage(QWidget):
             "luz": data.get("Luz"),
             "last_signal_ts": now
         })
+        
+        # Actualizar tarjeta si existe, o actualizar_vistas si es nueva
+        if dev_id in self.cards:
+            # Dispositivo existente: actualizar su tarjeta
+            card = self.cards[dev_id]
+            card.actualizar_visual(d, self.texto_ultima_senal(d))
+        else:
+            # Dispositivo nuevo: actualizar toda la vista para crear la tarjeta
+            self.actualizar_vistas()
 
  
     def actualizar_vistas(self):
@@ -133,6 +192,13 @@ class DevicesPage(QWidget):
         self._actualizar_tabla()
 
     def _actualizar_tarjetas(self):
+        # Limpiar layout existente
+        while self.cards_layout.count():
+            item = self.cards_layout.takeAt(0)
+            if item.widget():
+                # No eliminar el widget, solo sacarlo del layout
+                pass
+        
         for i, d in enumerate(self.devices.values()):
             dev_id = d["id"]
 
